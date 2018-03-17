@@ -21,7 +21,7 @@ func main() {
 
 func run() error {
 	resource := struct {
-		Source  preve.Source
+		Source  *preve.Source
 		Version *preve.Version `validate:"omitempty"`
 	}{}
 
@@ -34,45 +34,9 @@ func run() error {
 		return errors.Wrap(err, "invalid source section")
 	}
 
-	tokens := strings.Split(resource.Source.Repo, "/")
-	owner, repo := tokens[0], tokens[1]
-
-	gh := preve.MustGitHubClient(resource.Source.BaseURL)
-
-	ctx := context.Background()
-	events, _, err := gh.Activity.ListRepositoryEvents(ctx, owner, repo, nil)
+	versions, err := getNewVersions(resource.Source, resource.Version)
 	if err != nil {
-		return errors.Wrap(err, "failed to get repository events")
-	}
-
-	current := resource.Version
-
-	var versions []*preve.Version
-	for _, event := range events {
-		if event.GetType() != "PullRequestEvent" {
-			continue
-		}
-		payload, err := event.ParsePayload()
-		if err != nil {
-			return errors.Wrap(err, "broken events")
-		}
-		prEvent := payload.(*github.PullRequestEvent)
-		if prEvent.GetAction() != resource.Source.When {
-			continue
-		}
-
-		version := &preve.Version{
-			EventID:       event.GetID(),
-			PullRequestID: strconv.Itoa(prEvent.GetNumber()),
-		}
-		if current == nil {
-			versions = append(versions, version)
-			break
-		}
-		if preve.IsOlderVersion(current, version) {
-			break
-		}
-		versions = append(versions, version)
+		return errors.Wrap(err, "failed to get new versions")
 	}
 
 	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
@@ -84,4 +48,58 @@ func run() error {
 	}
 
 	return nil
+}
+
+func filterPullRequestEvent(events []*github.Event) []*github.Event {
+	r := events[:0]
+	for _, event := range events {
+		if event.GetType() == "PullRequestEvent" {
+			r = append(r, event)
+		}
+	}
+	return r
+}
+
+func getNewVersions(source *preve.Source, current *preve.Version) ([]*preve.Version, error) {
+	tokens := strings.Split(source.Repo, "/")
+	owner, repo := tokens[0], tokens[1]
+
+	var versions []*preve.Version
+
+	gh := preve.MustGitHubClient(source.BaseURL)
+	ctx := context.Background()
+	for page := 1; ; page++ {
+		events, _, err := gh.Activity.ListRepositoryEvents(ctx, owner, repo, &github.ListOptions{Page: page})
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get repository events")
+		}
+		if len(events) == 0 {
+			break
+		}
+
+		events = filterPullRequestEvent(events)
+		for _, event := range events {
+			payload, err := event.ParsePayload()
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to parse event payload")
+			}
+			prEvent := payload.(*github.PullRequestEvent)
+			if prEvent.GetAction() != source.When {
+				continue
+			}
+			version := &preve.Version{
+				EventID:       event.GetID(),
+				PullRequestID: strconv.Itoa(prEvent.GetNumber()),
+			}
+			if current == nil {
+				versions = append(versions, version)
+				return versions, nil
+			}
+			if preve.IsOlderVersion(current, version) {
+				return versions, nil
+			}
+			versions = append(versions, version)
+		}
+	}
+	return versions, nil
 }
