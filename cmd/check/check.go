@@ -20,24 +20,24 @@ func main() {
 }
 
 func run() error {
-	param := struct {
+	resource := struct {
 		Source  preve.Source
 		Version *preve.Version `validate:"omitempty"`
 	}{}
 
-	if err := json.NewDecoder(os.Stdin).Decode(&param); err != nil {
+	if err := json.NewDecoder(os.Stdin).Decode(&resource); err != nil {
 		return errors.Wrap(err, "failed to parse json from stdin")
 	}
 
 	validator := preve.NewValidator()
-	if err := validator.Struct(param); err != nil {
+	if err := validator.Struct(resource); err != nil {
 		return errors.Wrap(err, "invalid source section")
 	}
 
-	tokens := strings.Split(param.Source.Repo, "/")
+	tokens := strings.Split(resource.Source.Repo, "/")
 	owner, repo := tokens[0], tokens[1]
 
-	gh := preve.MustGitHubClient(param.Source.BaseURL)
+	gh := preve.MustGitHubClient(resource.Source.BaseURL)
 
 	ctx := context.Background()
 	events, _, err := gh.Activity.ListRepositoryEvents(ctx, owner, repo, nil)
@@ -45,7 +45,7 @@ func run() error {
 		return errors.Wrap(err, "failed to get repository events")
 	}
 
-	current := param.Version
+	current := resource.Version
 
 	var versions []*preve.Version
 	for _, event := range events {
@@ -57,7 +57,7 @@ func run() error {
 			return errors.Wrap(err, "broken events")
 		}
 		prEvent := payload.(*github.PullRequestEvent)
-		if prEvent.GetAction() != param.Source.When {
+		if prEvent.GetAction() != resource.Source.When {
 			continue
 		}
 
