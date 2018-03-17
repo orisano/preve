@@ -1,6 +1,8 @@
 package preve
 
-import "github.com/google/go-github/github"
+import (
+	"github.com/google/go-github/github"
+)
 
 func MustGitHubClient(baseURL string) *github.Client {
 	if baseURL == "" {
