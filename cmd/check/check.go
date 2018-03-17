@@ -37,7 +37,7 @@ func run() error {
 	tokens := strings.Split(param.Source.Repo, "/")
 	owner, repo := tokens[0], tokens[1]
 
-	gh := preve.MustGithubClient(param.Source.BaseURL)
+	gh := preve.MustGitHubClient(param.Source.BaseURL)
 
 	ctx := context.Background()
 	events, _, err := gh.Activity.ListRepositoryEvents(ctx, owner, repo, nil)

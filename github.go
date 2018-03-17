@@ -2,7 +2,7 @@ package preve
 
 import "github.com/google/go-github/github"
 
-func MustGithubClient(baseURL string) *github.Client {
+func MustGitHubClient(baseURL string) *github.Client {
 	if baseURL == "" {
 		return github.NewClient(nil)
 	}
