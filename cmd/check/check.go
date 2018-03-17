@@ -45,16 +45,9 @@ func run() error {
 		return errors.Wrap(err, "failed to get repository events")
 	}
 
-	current := int64(-1)
-	if param.Version != nil {
-		id, err := strconv.ParseInt(param.Version.ID, 10, 64)
-		if err != nil {
-			return errors.Wrap(err, "failed to parse current version id")
-		}
-		current = int64(id)
-	}
+	current := param.Version
 
-	var versions []preve.Version
+	var versions []*preve.Version
 	for _, event := range events {
 		if event.GetType() != "PullRequestEvent" {
 			continue
@@ -67,19 +60,19 @@ func run() error {
 		if prEvent.GetAction() != param.Source.When {
 			continue
 		}
-		id := int64(prEvent.GetNumber())
-		if current == -1 {
-			versions = append(versions, preve.Version{
-				ID: strconv.FormatInt(id, 10),
-			})
+
+		version := &preve.Version{
+			EventID:       event.GetID(),
+			PullRequestID: strconv.Itoa(prEvent.GetNumber()),
+		}
+		if current == nil {
+			versions = append(versions, version)
 			break
 		}
-		if current >= id {
+		if preve.IsOlderVersion(current, version) {
 			break
 		}
-		versions = append(versions, preve.Version{
-			ID: strconv.FormatInt(id, 10),
-		})
+		versions = append(versions, version)
 	}
 
 	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
