@@ -82,7 +82,7 @@ func run() error {
 		})
 	}
 
-	for i, j := 0, len(versions); i < j; i, j = i+1, j-1 {
+	for i, j := 0, len(versions)-1; i < j; i, j = i+1, j-1 {
 		versions[i], versions[j] = versions[j], versions[i]
 	}
 
