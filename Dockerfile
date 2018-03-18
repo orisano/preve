@@ -12,5 +12,4 @@ RUN go build -a -tags netgo -installsuffix netgo -ldflags="-extldflags '-static'
 RUN go build -a -tags netgo -installsuffix netgo -ldflags="-extldflags '-static'" -o bin/in github.com/orisano/preve/cmd/in
 
 FROM scratch
-COPY --from=build /go/src/github.com/orisano/preve/bin/check /opt/resource/check
-COPY --from=build /go/src/github.com/orisano/preve/bin/in /opt/resource/in
+COPY --from=build /go/src/github.com/orisano/preve/bin/* /opt/resource/
