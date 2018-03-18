@@ -68,15 +68,12 @@ func getNewVersions(source *preve.Source, current *preve.Version) ([]*preve.Vers
 
 	gh := preve.MustGitHubClient(source.BaseURL)
 	ctx := context.Background()
-	for page := 1; ; page++ {
-		events, _, err := gh.Activity.ListRepositoryEvents(ctx, owner, repo, &github.ListOptions{Page: page})
+	opt := &github.ListOptions{}
+	for {
+		events, resp, err := gh.Activity.ListRepositoryEvents(ctx, owner, repo, opt)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get repository events")
 		}
-		if len(events) == 0 {
-			break
-		}
-
 		events = filterPullRequestEvent(events)
 		for _, event := range events {
 			payload, err := event.ParsePayload()
@@ -100,6 +97,7 @@ func getNewVersions(source *preve.Source, current *preve.Version) ([]*preve.Vers
 			}
 			versions = append(versions, version)
 		}
+		opt.Page = resp.NextPage
 	}
 	return versions, nil
 }
